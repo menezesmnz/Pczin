@@ -1,0 +1,46 @@
+name: Testar Hardware do Cloud PC
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diagnostico:
+    runs-on: windows-latest
+
+    steps:
+      - name: Ver hardware
+        shell: powershell
+        run: |
+          Write-Host "===== CPU ====="
+          Get-CimInstance Win32_Processor |
+            Select-Object Name, NumberOfCores, NumberOfLogicalProcessors
+
+          Write-Host ""
+          Write-Host "===== RAM ====="
+          $ram = Get-CimInstance Win32_ComputerSystem
+          Write-Host "RAM: $([math]::Round($ram.TotalPhysicalMemory / 1GB, 2)) GB"
+
+          Write-Host ""
+          Write-Host "===== GPU ====="
+          Get-CimInstance Win32_VideoController |
+            Select-Object Name,
+              @{Name="VRAM_GB";Expression={
+                if ($_.AdapterRAM) {
+                  [math]::Round($_.AdapterRAM / 1GB, 2)
+                } else {
+                  0
+                }
+              }},
+              DriverVersion
+
+          Write-Host ""
+          Write-Host "===== DISCO ====="
+          Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'" |
+            Select-Object DeviceID,
+              @{Name="Total_GB";Expression={[math]::Round($_.Size / 1GB, 2)}},
+              @{Name="Livre_GB";Expression={[math]::Round($_.FreeSpace / 1GB, 2)}}
+
+          Write-Host ""
+          Write-Host "===== WINDOWS ====="
+          Get-CimInstance Win32_OperatingSystem |
+            Select-Object Caption, Version, BuildNumber
